@@ -6,15 +6,10 @@ import { startScanner, stopScanner } from './scanner.js';
 let supabase = null;
 
 // Application State
-const getInitialRole = () => {
-  const user = JSON.parse(localStorage.getItem('aloah_logged_in_user')) || null;
-  return user ? user.role : 'Admin';
-};
-
 const state = {
-  loggedInUser: JSON.parse(localStorage.getItem('aloah_logged_in_user')) || null,
+  loggedInUser: { id: 'admin', name: 'Admin User', email: 'admin@aloahevents.com', role: 'Admin' },
   authMode: 'login',
-  activeRole: getInitialRole(),
+  activeRole: 'Admin',
   activeEventId: null,
   currentView: 'dashboard',
   searchQuery: '',
@@ -47,21 +42,16 @@ const DOM = {
 document.addEventListener('DOMContentLoaded', () => {
   DB.init();
   initSupabase();
-  setupLogin();
   setupProfileMenu();
   setupNavigation();
   setupFAB();
   setupModalDismissal();
   
-  // Load view context if user is signed in
-  if (state.loggedInUser) {
-    syncUserSessionUI();
-    updateNavigationPermissions();
-    initEventSelector();
-    renderView('dashboard');
-  } else {
-    syncUserSessionUI();
-  }
+  // Directly load dashboard without authentication
+  syncUserSessionUI();
+  updateNavigationPermissions();
+  initEventSelector();
+  renderView('dashboard');
   
   // Dynamic updates simulation (mimics real-time event updates)
   setInterval(simulateRealtimeUpdates, 20000);
@@ -100,215 +90,6 @@ function getAccessibleEvents(allEvents) {
   return allEvents;
 }
 
-// Authentication & Login System
-function setupLogin() {
-  const loginForm = document.getElementById('login-form');
-  const toggleBtn = document.getElementById('auth-toggle-btn');
-  const toggleMsg = document.getElementById('auth-toggle-msg');
-  const submitBtn = document.getElementById('btn-login-submit');
-
-  function toggleAuthMode(mode) {
-    state.authMode = mode;
-    if (mode === 'signup') {
-      submitBtn.textContent = 'Create Account';
-      toggleMsg.textContent = 'Already have an account?';
-      toggleBtn.textContent = 'Sign In';
-    } else {
-      submitBtn.textContent = 'Access Dashboard';
-      toggleMsg.textContent = "Don't have an account?";
-      toggleBtn.textContent = 'Sign Up';
-    }
-  }
-
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      toggleAuthMode(state.authMode === 'login' ? 'signup' : 'login');
-    });
-  }
-
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      const pass = document.getElementById('login-password').value;
-      
-      if (state.authMode === 'signup') {
-        if (supabase) {
-          showToast('Creating Supabase account...');
-          let assignedRole = 'Event Manager';
-          if (email.toLowerCase() === 'jaigoel2206@gmail.com') {
-            assignedRole = 'Admin';
-          }
-          
-          const { data, error } = await supabase.auth.signUp({
-            email: email,
-            password: pass,
-            options: {
-              data: {
-                name: email.split('@')[0],
-                role: assignedRole
-              }
-            }
-          });
-          
-          if (error) {
-            showToast(error.message, 'error');
-            return;
-          }
-          
-          showToast('Account registered! Please check email or try signing in.', 'success');
-          toggleAuthMode('login');
-        } else {
-          showToast('Sign up is only supported on live Supabase connections.', 'error');
-        }
-        return;
-      }
-
-      if (supabase) {
-        showToast('Signing in via Supabase...');
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: pass
-        });
-        
-        if (error) {
-          // Fallback: Check if employee was registered locally by Admin
-          const employees = DB.getEmployees();
-          const matched = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase() && emp.password === pass);
-          
-          if (matched) {
-            state.loggedInUser = matched;
-            state.activeRole = matched.role;
-            localStorage.setItem('aloah_logged_in_user', JSON.stringify(matched));
-            
-            showToast(`Signed in locally as ${matched.name}`);
-            syncUserSessionUI();
-            updateNavigationPermissions();
-            initEventSelector();
-            renderView('dashboard');
-            return;
-          }
-          
-          showToast(error.message, 'error');
-          return;
-        }
-
-        // Fetch employee profile row directly from Supabase profiles table
-        let matched = null;
-        try {
-          const { data: profile, error: pError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          if (!pError && profile) {
-            matched = {
-              id: profile.id,
-              name: profile.name,
-              email: profile.email,
-              phone: profile.phone || '',
-              role: profile.role
-            };
-          }
-        } catch (pErr) {
-          console.error("Supabase profiles query failed", pErr);
-        }
-
-        // Fallback: Check if employee is in local database seeds
-        if (!matched) {
-          const employees = DB.getEmployees();
-          matched = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase());
-        }
-
-        // Final default fallback
-        if (!matched) {
-          matched = {
-            id: data.user.id,
-            name: data.user.email.split('@')[0],
-            email: data.user.email,
-            role: 'Event Manager'
-          };
-        }
-
-        // Dynamic caching check: add to local storage if they aren't seeded yet
-        const localEmployees = DB.getEmployees();
-        if (!localEmployees.some(emp => emp.email.toLowerCase() === matched.email.toLowerCase())) {
-          DB.addEmployee({
-            id: matched.id,
-            name: matched.name,
-            email: matched.email,
-            role: matched.role,
-            phone: matched.phone || '',
-            password: pass,
-            assignedEvents: []
-          });
-        }
-
-        state.loggedInUser = matched;
-        state.activeRole = matched.role;
-        localStorage.setItem('aloah_logged_in_user', JSON.stringify(matched));
-        
-        showToast(`Signed in via Supabase as ${matched.name}`);
-        syncUserSessionUI();
-        updateNavigationPermissions();
-        initEventSelector();
-        renderView('dashboard');
-      } else {
-        // Fallback to local simulation
-        const employees = DB.getEmployees();
-        const matched = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase() && emp.password === pass);
-        
-        if (matched) {
-          state.loggedInUser = matched;
-          state.activeRole = matched.role;
-          localStorage.setItem('aloah_logged_in_user', JSON.stringify(matched));
-          
-          showToast(`Signed in as ${matched.name}`);
-          syncUserSessionUI();
-          updateNavigationPermissions();
-          initEventSelector();
-          renderView('dashboard');
-        } else {
-          showToast('Invalid credentials provided', 'error');
-        }
-      }
-    });
-  }
-
-  // Connect Supabase Save Listener
-  const btnSaveSb = document.getElementById('btn-save-sb');
-  if (btnSaveSb) {
-    btnSaveSb.addEventListener('click', () => {
-      const url = document.getElementById('sb-url').value.trim();
-      const key = document.getElementById('sb-key').value.trim();
-      
-      if (url && key) {
-        localStorage.removeItem('supabase_disconnected');
-        localStorage.setItem('supabase_url', url);
-        localStorage.setItem('supabase_key', key);
-        initSupabase();
-        showToast('Supabase linked successfully');
-      } else {
-        localStorage.setItem('supabase_disconnected', 'true');
-        localStorage.removeItem('supabase_url');
-        localStorage.removeItem('supabase_key');
-        initSupabase();
-        showToast('Returned to Offline Simulation Mode');
-      }
-    });
-  }
-
-  // Autofill helpers
-  document.querySelectorAll('.demo-credentials').forEach(cred => {
-    cred.addEventListener('click', () => {
-      document.getElementById('login-email').value = cred.dataset.email;
-      document.getElementById('login-password').value = cred.dataset.pass;
-      loginForm.dispatchEvent(new Event('submit'));
-    });
-  });
-}
-
 function setupProfileMenu() {
   DOM.roleBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -322,40 +103,16 @@ function setupProfileMenu() {
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      state.loggedInUser = null;
-      localStorage.removeItem('aloah_logged_in_user');
-      showToast('Logged out of session');
-      syncUserSessionUI();
+      showToast('Logout disabled - running in demo mode');
     });
   }
 }
 
 function syncUserSessionUI() {
-  const loginWrapper = document.getElementById('login-container');
-  const appContainer = document.getElementById('app-container');
-  
-  if (state.loggedInUser) {
-    loginWrapper.style.display = 'none';
-    appContainer.style.display = 'block';
-    
-    // Set headers
-    document.getElementById('current-user-name').textContent = state.loggedInUser.name;
-    document.getElementById('current-role-label').textContent = state.loggedInUser.role;
-    document.getElementById('dropdown-email').textContent = state.loggedInUser.email;
-  } else {
-    loginWrapper.style.display = 'flex';
-    appContainer.style.display = 'none';
-    
-    // Clear inputs
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
-
-    // Toggle demo tray visibility depending on Supabase connection state
-    const demoTray = document.querySelector('.demo-tray');
-    if (demoTray) {
-      demoTray.style.display = supabase ? 'none' : 'block';
-    }
-  }
+  // Set headers with default admin user
+  document.getElementById('current-user-name').textContent = state.loggedInUser.name;
+  document.getElementById('current-role-label').textContent = state.loggedInUser.role;
+  document.getElementById('dropdown-email').textContent = state.loggedInUser.email;
 }
 
 // Route Switcher / Navigation
