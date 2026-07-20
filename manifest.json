@@ -1,0 +1,21 @@
+{
+  "short_name": "Aloah Events",
+  "name": "Aloah Events Check-in & Management System",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' width='192' height='192'><rect width='192' height='192' fill='%2309090b'/><text x='50%' y='55%' font-family='sans-serif' font-size='96' font-weight='bold' fill='%23ffffff' text-anchor='middle' dominant-baseline='middle'>A</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'><rect width='512' height='512' fill='%2309090b'/><text x='50%' y='55%' font-family='sans-serif' font-size='256' font-weight='bold' fill='%23ffffff' text-anchor='middle' dominant-baseline='middle'>A</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#ffffff",
+  "theme_color": "#09090b",
+  "display": "standalone",
+  "orientation": "portrait"
+}

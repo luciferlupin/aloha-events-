@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Aloah Events - Check-in & Management System</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Premium mobile-first Progressive Web App (PWA) for Aloah Events guest relations, task tracking, and QR code event check-ins.">
+  <meta name="theme-color" content="#09090b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- CDNs for QR Code Generation and Scanning (cached by Service Worker) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+
+  <!-- Premium Centered Login Container -->
+  <div id="login-container" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo">Aloah<span>.events</span></div>
+      <p class="login-subtitle">Sign in to manage luxury events and client operations</p>
+      
+      <!-- Supabase Connection Config Panel -->
+      <details style="text-align: left; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px; background: rgba(255,255,255,0.01);">
+        <summary style="font-size: 11px; font-weight: 700; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: space-between; outline:none; user-select:none;">
+          <span>⚙️ Supabase Integration</span>
+          <span id="supabase-status-badge" style="font-size: 8px; font-weight:700; padding: 2px 6px; border-radius: 4px; background: #ef4444; color: #fff; text-transform:uppercase; letter-spacing:0.5px;">Offline</span>
+        </summary>
+        <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label" style="font-size: 10px; color: var(--text-muted); margin-bottom:2px;">Project URL</label>
+            <input type="url" id="sb-url" class="form-control" placeholder="https://xxxx.supabase.co" style="font-size: 11px; padding: 6px 10px; background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary); border-radius:6px; min-height:28px;">
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label" style="font-size: 10px; color: var(--text-muted); margin-bottom:2px;">Anon Key</label>
+            <input type="password" id="sb-key" class="form-control" placeholder="eyJhbGciOi..." style="font-size: 11px; padding: 6px 10px; background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary); border-radius:6px; min-height:28px;">
+          </div>
+          <button type="button" id="btn-save-sb" class="btn btn-primary" style="font-size: 10px; min-height: 28px; padding: 4px 10px; margin-top: 4px; background: #10b981; border-color: #10b981; width:100%; font-weight:700;">
+            Connect Supabase
+          </button>
+        </div>
+      </details>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" style="color: var(--text-muted);">Email Address</label>
+          <input type="email" id="login-email" class="form-control" placeholder="name@aloahevents.com" required style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+        </div>
+        
+        <div class="form-group" style="margin-top: 12px;">
+          <label class="form-label" style="color: var(--text-muted);">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required style="background: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 20px; font-weight: 700; letter-spacing: 0.5px;">
+          Access Dashboard
+        </button>
+      </form>
+      
+      <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+        <span id="auth-toggle-msg">Don't have an account?</span>
+        <button class="btn btn-text" id="auth-toggle-btn" style="min-height: 24px; padding: 0 4px; font-weight: 700; color: var(--text-primary); cursor: pointer; text-decoration: underline;">Sign Up</button>
+      </div>
+      
+      <!-- Quick Test Accounts Tray -->
+      <div class="demo-tray">
+        <span class="demo-tray-title">Quick Test Accounts</span>
+        <div class="demo-credentials" data-email="jaigoel2206@gmail.com" data-pass="jaigoel2006">
+          <strong>Admin:</strong> jaigoel2206@gmail.com / jaigoel2006
+        </div>
+        <div class="demo-credentials" data-email="rohan@aloahevents.com" data-pass="manager123">
+          <strong>Manager:</strong> rohan@aloahevents.com / manager123
+        </div>
+        <div class="demo-credentials" data-email="rajesh@aloahevents.com" data-pass="finance123">
+          <strong>Finance:</strong> rajesh@aloahevents.com / finance123
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup Phone container to center and look premium on Desktop, full screen on Mobile -->
+  <div id="app-container" style="display: none;">
+    
+    <!-- Top Header and Role Control Switcher -->
+    <header>
+      <div class="header-top">
+        <div class="logo">Aloah<span>.events</span></div>
+        
+        <!-- Desktop Navigation (Hidden on mobile) -->
+        <nav class="desktop-nav">
+          <button class="nav-item active" data-view="dashboard" data-nav="home">Home</button>
+          <button class="nav-item" data-view="events" data-nav="events">Events</button>
+          <button class="nav-item" data-view="guests" data-nav="guests">Guests</button>
+          <button class="nav-item" data-view="tasks" data-nav="tasks">Tasks</button>
+          <button class="nav-item" data-view="finances" data-nav="finances">Finances</button>
+          <button class="nav-item" data-view="profile" data-nav="profile">Profile</button>
+        </nav>
+        
+        <div class="role-badge-container">
+          <button id="role-badge-btn" class="active-role-pill" aria-label="Toggle Profile Dropdown">
+            <span id="current-user-name">Prabal Sharma</span>
+            <span class="user-role-label" id="current-role-label">Admin</span>
+          </button>
+          
+          <div id="role-dropdown" class="role-switcher-dropdown" style="width: 170px; padding: 10px;">
+            <div id="dropdown-user-info" style="font-size: 11px; margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; color: var(--text-muted);">
+              Signed in as:<br/><strong id="dropdown-email" style="color:var(--text-primary); display:block; text-overflow:ellipsis; overflow:hidden;">prabal@aloahevents.com</strong>
+            </div>
+            <button class="role-option text-danger" id="logout-btn" style="width:100%; text-align:left; color:#ef4444; border:none; background:none; font-size:12px; padding:6px; cursor:pointer;">
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quick Context Switcher for Events -->
+      <div class="event-context-bar">
+        <span>Active Event:</span>
+        <select id="global-event-selector" aria-label="Select Event Context">
+          <!-- Populated dynamically by JS -->
+        </select>
+      </div>
+    </header>
+
+    <!-- Toast Notification container -->
+    <div id="toast-container"></div>
+
+    <!-- Main Viewport where layouts change -->
+    <main id="viewport" class="view-enter">
+      <!-- Dynamic Views rendered by JS modules -->
+    </main>
+
+    <!-- Floating Action Button (FAB) for quick additions (Only visible to certain roles) -->
+    <button id="global-fab" class="fab" style="display: none;" aria-label="Add Item">
+      <svg style="width: 24px; height: 24px; fill: none; stroke: currentColor;" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
+
+    <!-- Bottom Navigation Bar (Optimized for one-handed mobile grip) -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-view="dashboard" data-nav="home">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Home
+      </button>
+      <button class="nav-item" data-view="events" data-nav="events">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Events
+      </button>
+      <button class="nav-item" data-view="guests" data-nav="guests">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Guests
+      </button>
+      <button class="nav-item" data-view="tasks" data-nav="tasks">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Tasks
+      </button>
+      <button class="nav-item" data-view="finances" data-nav="finances">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Finances
+      </button>
+      <button class="nav-item" data-view="profile" data-nav="profile">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Profile
+      </button>
+    </nav>
+
+    <!-- Reusable Bottom Sheet / Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div id="bottom-sheet" class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div id="modal-content">
+          <!-- Dynamic Form contents go here -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main JavaScript Controller -->
+  <script type="module" src="js/app.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocal) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (let reg of registrations) {
+            reg.unregister().then(() => console.log("Unregistered service worker successfully."));
+          }
+        });
+        if (window.caches) {
+          caches.keys().then((names) => {
+            for (let name of names) {
+              caches.delete(name).then(() => console.log("Cleared cache storage: " + name));
+            }
+          });
+        }
+        console.log("Local Dev Mode: Bypassed Service Worker caching.");
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then((reg) => console.log('Service Worker registered successfully!', reg.scope))
+            .catch((err) => console.error('Service Worker registration failed:', err));
+        });
+      }
+    }
+  </script>
+</body>
+</html>
