@@ -105,9 +105,13 @@ function setupProfileMenu() {
 
 function syncUserSessionUI() {
   // Set headers with default admin user
-  document.getElementById('current-user-name').textContent = state.loggedInUser.name;
-  document.getElementById('current-role-label').textContent = state.loggedInUser.role;
-  document.getElementById('dropdown-email').textContent = state.loggedInUser.email;
+  const userNameEl = document.getElementById('current-user-name');
+  const roleLabelEl = document.getElementById('current-role-label');
+  const dropdownEmailEl = document.getElementById('dropdown-email');
+  
+  if (userNameEl) userNameEl.textContent = state.loggedInUser.name;
+  if (roleLabelEl) roleLabelEl.textContent = state.loggedInUser.role;
+  if (dropdownEmailEl) dropdownEmailEl.textContent = state.loggedInUser.email;
 }
 
 // Route Switcher / Navigation
