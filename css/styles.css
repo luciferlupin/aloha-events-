@@ -75,6 +75,7 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* App Container */
@@ -909,6 +910,10 @@ textarea.form-control {
    Responsive Adaptive Desktop Media Queries (>= 768px)
    ---------------------------------------------------- */
 @media (min-width: 768px) {
+  /* Ensure proper viewport handling on desktop */
+  html, body {
+    overflow-x: hidden;
+  }
   /* Layout modifications */
   body {
     overflow-y: scroll;

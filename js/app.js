@@ -30,12 +30,7 @@ const DOM = {
   globalFab: document.getElementById('global-fab'),
   modalOverlay: document.getElementById('modal-overlay'),
   modalContent: document.getElementById('modal-content'),
-  toastContainer: document.getElementById('toast-container'),
-  navHome: document.getElementById('nav-btn-home'),
-  navEvents: document.getElementById('nav-btn-events'),
-  navGuests: document.getElementById('nav-btn-guests'),
-  navTasks: document.getElementById('nav-btn-tasks'),
-  navProfile: document.getElementById('nav-btn-profile')
+  toastContainer: document.getElementById('toast-container')
 };
 
 // Initialize Application
